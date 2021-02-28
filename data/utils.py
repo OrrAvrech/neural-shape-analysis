@@ -1,9 +1,11 @@
 import os
 import glob
+import math
 import trimesh
 from sklearn.model_selection import train_test_split
 import numpy as np
 import tensorflow as tf
+import point_cloud_utils as pcu
 
 
 def parse_dataset(data_dir, num_points):
@@ -39,59 +41,49 @@ def parse_dataset(data_dir, num_points):
     )
 
 
-def train_val_split(train_size=0.8):
-    train, val = [], []
-    for obj_type in glob.glob('ModelNet40/*/'):
+def train_val_split(dataset, validation_split=0.2):
+    train_files, val_files = [], []
+    train_labels, val_labels = [], []
+    for i, obj_type in enumerate(glob.glob(f"{dataset}/*/")):
         cur_files = glob.glob(obj_type + 'train/*.npy')
         cur_train, cur_val = \
-            train_test_split(cur_files, train_size=train_size, random_state=0, shuffle=True)
-        train.extend(cur_train)
-        val.extend(cur_val)
+            train_test_split(cur_files, test_size=validation_split)
+        train_files.extend(cur_train)
+        val_files.extend(cur_val)
+        train_labels.extend([i for _ in range(len(cur_train))])
+        val_labels.extend([i for _ in range(len(cur_val))])
 
-    return train, val
+    return train_files, train_labels, val_files, val_labels
 
 
-def tf_parse_filename(filename):
-    """Take batch of filenames and create point cloud and label"""
+def tf_parse_filename(filename, label):
 
-    idx_lookup = {'airplane': 0, 'bathtub': 1, 'bed': 2, 'bench': 3, 'bookshelf': 4,
-                  'bottle': 5, 'bowl': 6, 'car': 7, 'chair': 8, 'cone': 9,
-                  'cup': 10, 'curtain': 11, 'desk': 12, 'door': 13, 'dresser': 14,
-                  'flower_pot': 15, 'glass_box': 16, 'guitar': 17, 'keyboard': 18,
-                  'lamp': 19, 'laptop': 20, 'mantel': 21, 'monitor': 22, 'night_stand': 23,
-                  'person': 24, 'piano': 25, 'plant': 26, 'radio': 27, 'range_hood': 28,
-                  'sink': 29, 'sofa': 30, 'stairs': 31, 'stool': 32, 'table': 33,
-                  'tent': 34, 'toilet': 35, 'tv_stand': 36, 'vase': 37, 'wardrobe': 38,
-                  'xbox': 39}
+    def parse_filename(f):
 
-    def parse_filename(filename_batch):
+        # Read in point cloud
+        filename_str = f.numpy().decode()
+        pt_cloud = np.load(filename_str)
 
-        pt_clouds = []
-        labels = []
-        for filename in filename_batch:
-            # Read in point cloud
-            filename_str = filename.numpy().decode()
-            pt_cloud = np.load(filename_str)
+        # Add rotation and jitter to point cloud
+        theta = np.random.random() * 2*np.pi
+        A = np.array([[np.cos(theta), -np.sin(theta), 0],
+                      [np.sin(theta), np.cos(theta), 0],
+                      [0, 0, 1]])
+        offsets = np.random.normal(0, 0.02, size=pt_cloud.shape)
+        pt_cloud = np.matmul(pt_cloud, A) + offsets
 
-            # Add rotation and jitter to point cloud
-            theta = np.random.random() * 2*3.141
-            A = np.array([[np.cos(theta), -np.sin(theta), 0],
-                          [np.sin(theta), np.cos(theta), 0],
-                          [0, 0, 1]])
-            offsets = np.random.normal(0, 0.02, size=pt_cloud.shape)
-            pt_cloud = np.matmul(pt_cloud, A) + offsets
+        return pt_cloud
 
-            # Create classification label
-            obj_type = filename_str.split('/')[1]   # e.g., airplane, bathtub
-            label = idx_lookup[obj_type]
+    x = tf.py_function(parse_filename, [filename], [tf.float32])
+    x = tf.squeeze(x)
+    return x, label
 
-            pt_clouds.append(pt_cloud)
-            labels.append(label)
 
-        return np.stack(pt_clouds), np.stack(labels)
-
-    x, y = tf.py_function(parse_filename, [filename], [tf.float32, tf.float32])
-    return x, y
+def get_num_classes(dataset):
+    if dataset == 'ModelNet40':
+        return 40
+    else:
+        return 10
 
 
 def get_tf_data_sets(data_dir, num_points, validation_split=0.2, stratify=True):
@@ -123,22 +115,49 @@ def augment(points, label):
 
 
 def map_second_order_moments(points, labels):
+    # x^2, y^2, z^2
     squared_points = tf.pow(points, 2)
-    xy = tf.expand_dims(tf.multiply(points[:, 0], points[:, 1]), axis=1)
-    xz = tf.expand_dims(tf.multiply(points[:, 0], points[:, 2]), axis=1)
-    yz = tf.expand_dims(tf.multiply(points[:, 1], points[:, 2]), axis=1)
-    moments = tf.concat([points, squared_points, xy, xz, yz], axis=1)
+    # xz, yx, zy
+    rolled_point_cloud = tf.roll(points, shift=1, axis=-1)
+    tmp_point_moments = tf.multiply(points, rolled_point_cloud)
+    moments = tf.concat([points, squared_points, tmp_point_moments], axis=1)
     return moments, labels
 
 
 def map_third_order_moments(points, labels):
+    # x^3, y^3, z^3
     cubed_points = tf.pow(points, 3)
-    xxy = tf.expand_dims(tf.multiply(points[:, 0]**2, points[:, 1]), axis=1)
-    xxz = tf.expand_dims(tf.multiply(points[:, 0]**2, points[:, 2]), axis=1)
-    yyx = tf.expand_dims(tf.multiply(points[:, 1]**2, points[:, 0]), axis=1)
-    yyz = tf.expand_dims(tf.multiply(points[:, 1]**2, points[:, 2]), axis=1)
-    zzx = tf.expand_dims(tf.multiply(points[:, 2]**2, points[:, 0]), axis=1)
-    zzy = tf.expand_dims(tf.multiply(points[:, 2]**2, points[:, 1]), axis=1)
-    xyz = tf.expand_dims(points[:, 0]*points[:, 1]*points[:, 2], axis=1)
+    squared_points = tf.pow(points, 2)
+    rolled_square = tf.roll(squared_points, shift=1, axis=-1)
+    # xxy, yyz, zzx
+    tmp_point_moments_1 = tf.multiply(points, rolled_square)
+    # xyy, yzz, zxx
+    rolled_square = tf.roll(rolled_square, shift=1, axis=-1)
+    tmp_point_moments_2 = tf.multiply(points, rolled_square)
+    # xyz
+    xyz = tf.math.reduce_prod(points, axis=-1, keepdims=True)
+    # second order moments
     second_order_points, _ = map_second_order_moments(points, labels)
-    moments = tf.concat([second_order_points, cubed_points, ])
+    moments = tf.concat([points, second_order_points, cubed_points,
+                         tmp_point_moments_1, tmp_point_moments_2, xyz])
+    return moments, labels
+
+
+def map_pre_lifting(points, labels):
+    sin_pi = tf.sin(math.pi * points)
+    cos_pi = tf.cos(math.pi * points)
+    sin_2pi = tf.sin(2*math.pi * points)
+    cos_2pi = tf.cos(2*math.pi * points)
+    harmonics = tf.concat([points, sin_pi, cos_pi, sin_2pi, cos_2pi])
+    return harmonics, labels
+
+
+def map_normals(points, labels):
+
+    def estimate_normals(point_cloud, k=50):
+        normals = pcu.estimate_normals(point_cloud, k=k)
+        return normals
+
+    x = tf.py_function(estimate_normals, [points], [tf.float32])
+    points_normals = tf.concat([points, x])
+    return points_normals, labels

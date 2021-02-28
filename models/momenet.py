@@ -51,10 +51,9 @@ def tnet(inputs, num_features):
     return layers.Dot(axes=(2, 1))([inputs, feat_T])
 
 
-def get_model(num_points, num_classes, num_channels):
-    inputs = tf.keras.Input(shape=(num_points, num_channels))
-    # x = tnet(inputs, num_channels)
-    x = inputs
+def get_model(num_classes, num_channels):
+    inputs = tf.keras.Input(shape=(None, num_channels))
+    x = tnet(inputs, num_channels)
     x = conv_bn(x, 64)
     x = conv_bn(x, 64)
     x = conv_bn(x, 64)
