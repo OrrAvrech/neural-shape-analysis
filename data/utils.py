@@ -71,7 +71,20 @@ def tf_parse_filename(filename, label):
                       [0, 0, 1]])
         offsets = np.random.normal(0, 0.02, size=pt_cloud.shape)
         pt_cloud = np.matmul(pt_cloud, A) + offsets
+        return pt_cloud
 
+    x = tf.py_function(parse_filename, [filename], [tf.float32])
+    x = tf.squeeze(x)
+    return x, label
+
+
+def tf_parse_filename_test(filename, label):
+
+    def parse_filename(f):
+
+        # Read in point cloud
+        filename_str = f.numpy().decode()
+        pt_cloud = np.load(filename_str)
         return pt_cloud
 
     x = tf.py_function(parse_filename, [filename], [tf.float32])
@@ -84,34 +97,6 @@ def get_num_classes(dataset):
         return 40
     else:
         return 10
-
-
-def get_tf_data_sets(data_dir, num_points, validation_split=0.2, stratify=True):
-    train_points, test_points, train_labels, test_labels, class_map = parse_dataset(data_dir,
-                                                                                    num_points)
-    if stratify:
-        train_points, val_points, train_labels, val_labels = train_test_split(train_points,
-                                                                              train_labels,
-                                                                              test_size=validation_split,
-                                                                              stratify=train_labels)
-    else:
-        train_points, val_points, train_labels, val_labels = train_test_split(train_points,
-                                                                              train_labels,
-                                                                              test_size=validation_split)
-    train_ds_len = len(train_points)
-    train_ds = tf.data.Dataset.from_tensor_slices((train_points, train_labels))
-    val_ds = tf.data.Dataset.from_tensor_slices((val_points, val_labels))
-    test_ds = tf.data.Dataset.from_tensor_slices((test_points, test_labels))
-    train_ds = train_ds.shuffle(train_ds_len)
-    return train_ds, val_ds, test_ds
-
-
-def augment(points, label):
-    # jitter points
-    points += tf.random.uniform(points.shape, -0.005, 0.005, dtype=tf.float64)
-    # shuffle points
-    points = tf.random.shuffle(points)
-    return points, label
 
 
 def map_second_order_moments(points, labels):
@@ -138,8 +123,8 @@ def map_third_order_moments(points, labels):
     xyz = tf.math.reduce_prod(points, axis=-1, keepdims=True)
     # second order moments
     second_order_points, _ = map_second_order_moments(points, labels)
-    moments = tf.concat([points, second_order_points, cubed_points,
-                         tmp_point_moments_1, tmp_point_moments_2, xyz])
+    moments = tf.concat([second_order_points, cubed_points,
+                         tmp_point_moments_1, tmp_point_moments_2, xyz], axis=1)
     return moments, labels
 
 
@@ -148,16 +133,18 @@ def map_pre_lifting(points, labels):
     cos_pi = tf.cos(math.pi * points)
     sin_2pi = tf.sin(2*math.pi * points)
     cos_2pi = tf.cos(2*math.pi * points)
-    harmonics = tf.concat([points, sin_pi, cos_pi, sin_2pi, cos_2pi])
+    harmonics = tf.concat([points, sin_pi, cos_pi, sin_2pi, cos_2pi], axis=1)
     return harmonics, labels
 
 
 def map_normals(points, labels):
 
-    def estimate_normals(point_cloud, k=50):
-        normals = pcu.estimate_normals(point_cloud, k=k)
+    def estimate_normals(point_cloud):
+        normals = pcu.estimate_normals(point_cloud.numpy(), k=50)
         return normals
 
-    x = tf.py_function(estimate_normals, [points], [tf.float32])
-    points_normals = tf.concat([points, x])
+    first_order_moments = points[:, :3]
+    x = tf.py_function(estimate_normals, [first_order_moments], [tf.float32])
+    x = tf.squeeze(x)
+    points_normals = tf.concat([points, x], axis=1)
     return points_normals, labels
