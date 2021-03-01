@@ -1,44 +1,9 @@
-import os
 import glob
 import math
-import trimesh
 from sklearn.model_selection import train_test_split
 import numpy as np
 import tensorflow as tf
 import point_cloud_utils as pcu
-
-
-def parse_dataset(data_dir, num_points):
-    train_points = []
-    train_labels = []
-    test_points = []
-    test_labels = []
-    class_map = {}
-    folders = glob.glob(os.path.join(data_dir, "[!README]*"))
-
-    for i, folder in enumerate(folders):
-        print("processing class: {}".format(os.path.basename(folder)))
-        # store folder name with ID so we can retrieve later
-        class_map[i] = folder.split("/")[-1]
-        # gather all files
-        train_files = glob.glob(os.path.join(folder, "train/*"))
-        test_files = glob.glob(os.path.join(folder, "test/*"))
-
-        for f in train_files:
-            train_points.append(trimesh.load(f).sample(num_points))
-            train_labels.append(i)
-
-        for f in test_files:
-            test_points.append(trimesh.load(f).sample(num_points))
-            test_labels.append(i)
-
-    return (
-        np.array(train_points),
-        np.array(test_points),
-        np.array(train_labels),
-        np.array(test_labels),
-        class_map,
-    )
 
 
 def train_val_split(dataset, validation_split=0.2):
@@ -54,6 +19,16 @@ def train_val_split(dataset, validation_split=0.2):
         val_labels.extend([i for _ in range(len(cur_val))])
 
     return train_files, train_labels, val_files, val_labels
+
+
+def test_list(dataset):
+    test_files, test_labels = [], []
+    for i, obj_type in enumerate(glob.glob(f"{dataset}/*/")):
+        cur_files = glob.glob(obj_type + 'test/*.npy')
+        test_files.extend(cur_files)
+        test_labels.extend([i for _ in range(len(cur_files))])
+
+    return test_files, test_labels
 
 
 def tf_parse_filename(filename, label):
@@ -93,7 +68,7 @@ def tf_parse_filename_test(filename, label):
 
 
 def get_num_classes(dataset):
-    if dataset == 'ModelNet40':
+    if 'ModelNet40' in dataset:
         return 40
     else:
         return 10

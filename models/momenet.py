@@ -15,6 +15,9 @@ class OrthogonalRegularizer(tf.keras.regularizers.Regularizer):
         xxt = tf.reshape(xxt, (-1, self.num_features, self.num_features))
         return tf.reduce_sum(self.l2reg * tf.square(xxt - self.eye))
 
+    def get_config(self):
+        return {'l2reg': float(self.l2reg)}
+
 
 def conv_bn(x, filters):
     x = layers.Conv1D(filters, kernel_size=1, padding="valid")(x)
