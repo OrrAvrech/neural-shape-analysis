@@ -1,0 +1,23 @@
+name: Upload model
+description: Upload model GCS and report metrics
+inputs:
+  - {name: model_path, type: String}
+  - {name: metrics_path, type: String}
+  - {name: pipeline_run_name, type: String}
+  - {name: bucket, type: String}
+outputs:
+  - {name: MLPipeline Metrics, type: Metrics}
+implementation:
+  container:
+    image: gcr.io/kubeflow-cli/nsa-upload@sha256:da1a2def13aa26b5e9074b68e889bbe6ecf31b7d6ae8e3f81dca00dc63927408
+    command:
+      - python3
+      - /app/upload.py
+    args: [
+      --model_path, {inputPath: model_path},
+      --metrics_path, {inputPath: metrics_path},
+      --pipeline_run_name, {inputValue: pipeline_run_name},
+      --bucket, {inputValue: bucket},
+      ]
+    fileOutputs:
+      MLPipeline Metrics: /mlpipeline-metrics.json

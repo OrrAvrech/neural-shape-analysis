@@ -1,0 +1,36 @@
+name: Train and eval Momenet
+description: Trains point cloud classification
+inputs:
+  - {name: dataset, type: String}
+  - {name: model, type: String}
+  - {name: moment, type: Integer}
+  - {name: is_normals, type: Bool}
+  - {name: is_harmonics, type: Bool}
+  - {name: num_points, type: Integer}
+  - {name: batch_size, type: Integer}
+  - {name: learning_rate, type: Float}
+  - {name: tensorboard_logs, type: String}
+  - {name: epochs, type: Integer}
+outputs:
+  - {name: export_dir, type: String}
+  - {name: metrics_path, type: String}
+implementation:
+  container:
+    image: gcr.io/kubeflow-cli/nsa-train@sha256:776c4faa375043c2866e372c45baa1921fdd3ee8816648f10bb90d8053717d8b
+    command:
+      - python3
+      - /app/train.py
+    args: [
+      --dataset, {inputPath: dataset},
+      --model, {inputValue: model},
+      --moment, {inputValue: moment},
+      --is_normals, {inputValue: is_normals},
+      --is_harmonics, {inputValue: is_harmonics},
+      --num_points, {inputValue: num_points},
+      --batch_size, {inputValue: batch_size},
+      --learning_rate, {inputValue: learning_rate},
+      --logs_dir, {inputValue: tensorboard_logs},
+      --epochs, {inputValue: epochs},
+      --export_dir, {outputPath: export_dir},
+      --metrics_path, {outputPath: metrics_path}
+      ]
