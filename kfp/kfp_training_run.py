@@ -3,7 +3,6 @@ import kfp
 import logging
 import argparse
 from datetime import datetime
-from google.cloud import storage
 from kfp.components import load_component
 from kfp.compiler import Compiler
 import kfp.dsl as dsl
@@ -63,17 +62,9 @@ def run(dataset_uri, dst_bucket, saved_kfp_dir,
     pipeline_run = f"{PIPELINE_NAME}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
     logging.info("run: %s", pipeline_run)
 
-    # storage_client = storage.Client()
-    # compile and save pipeline
-    # saved_kfp_name = f"{PIPELINE_NAME}.zip"
-    # saved_kfp_zip = os.path.join(saved_kfp_dir, saved_kfp_name)
-    # Compiler().compile(training_pipeline, saved_kfp_zip)
-    # upload compiled pipline to GCS
-    # dst_prefix = f"pipelines/{PIPELINE_NAME}"
-    # bucket = storage_client.bucket(dst_bucket)
-    # blob = bucket.blob(f"{dst_prefix}/{saved_kfp_name}")
-    # blob.upload_from_file(saved_kfp_zip)
-    # logging.info(f"upload pipeline to GCS {blob.name}")
+    saved_kfp_name = f"{PIPELINE_NAME}.zip"
+    saved_kfp_zip = os.path.join(saved_kfp_dir, saved_kfp_name)
+    Compiler().compile(training_pipeline, saved_kfp_zip)
 
     # create pipeline run
     run_id = client.create_run_from_pipeline_func(

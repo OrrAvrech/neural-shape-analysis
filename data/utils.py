@@ -31,6 +31,17 @@ def test_list(dataset):
     return test_files, test_labels
 
 
+def augment(pc):
+    # Add rotation and jitter to point cloud
+    theta = np.random.random() * 2 * np.pi
+    A = np.array([[np.cos(theta), -np.sin(theta), 0],
+                  [np.sin(theta), np.cos(theta), 0],
+                  [0, 0, 1]])
+    offsets = np.random.normal(0, 0.02, size=pc.shape)
+    pt_cloud = np.matmul(pc, A) + offsets
+    return pt_cloud
+
+
 def tf_parse_filename(filename, label):
 
     def parse_filename(f):

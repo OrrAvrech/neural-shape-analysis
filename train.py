@@ -131,24 +131,23 @@ def _parse_args():
     parser.add_argument('--export_dir', type=str, help='export model dir')
     parser.add_argument('--metrics_path', type=str, help='output file for recording metrics')
     parser.add_argument('--epochs', type=int, default=15, help='number of training epochs')
-    return parser.parse_args()
+    return vars(parser.parse_args())
 
 
-def main():
+def main(args):
     logging.basicConfig(level=logging.DEBUG)
 
-    args = _parse_args()
-    dataset = args.dataset
-    batch_size = args.batch_size
-    order = args.moment
-    is_harmonics = args.is_harmonics
-    is_normals = args.is_normals
-    model = args.model
-    lr = args.learning_rate
-    epochs = args.epochs
-    logs_dir = args.logs_dir
-    export_dir = args.export_dir
-    metrics_path = args.metrics_path
+    dataset = args['dataset']
+    batch_size = args['batch_size']
+    order = args['moment']
+    is_harmonics = args['is_harmonics']
+    is_normals = args['is_normals']
+    model = args['model']
+    lr = args['learning_rate']
+    epochs = args['epochs']
+    logs_dir = args['logs_dir']
+    export_dir = args['export_dir']
+    metrics_path = args['metrics_path']
     os.makedirs(logs_dir, exist_ok=True)
     os.makedirs(export_dir, exist_ok=True)
 
@@ -166,4 +165,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    args_dict = _parse_args()
+    main(args_dict)
