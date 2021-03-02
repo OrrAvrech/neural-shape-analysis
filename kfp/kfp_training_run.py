@@ -26,12 +26,12 @@ def training_pipeline(dataset_uri,
                       dst_bucket,
                       model_name: str = "momenet",
                       moment_order: int = 1,
-                      normals: bool = False,
-                      harmonics: bool = False,
+                      normals: int = 0,
+                      harmonics: int = 0,
                       num_points: int = 2048,
                       batch_size: int = 32,
                       initial_learning_rate: float = 1e-4,
-                      epochs: int = 15):
+                      epochs: int = 1):
     download_data_task = download_data_op(dataset_uri)
     pipeline_run_name = f"{PIPELINE_NAME}_moment-{moment_order}_normals-{normals}_harmonics-{harmonics}"
     logs_url = f"gs://{dst_bucket}/{pipeline_run_name}/logs"

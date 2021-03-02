@@ -4,8 +4,8 @@ inputs:
   - {name: dataset, type: String}
   - {name: model, type: String}
   - {name: moment, type: Integer}
-  - {name: is_normals, type: Bool}
-  - {name: is_harmonics, type: Bool}
+  - {name: is_normals, type: Integer}
+  - {name: is_harmonics, type: Integer}
   - {name: num_points, type: Integer}
   - {name: batch_size, type: Integer}
   - {name: learning_rate, type: Float}
@@ -16,7 +16,7 @@ outputs:
   - {name: metrics_path, type: String}
 implementation:
   container:
-    image: gcr.io/kubeflow-cli/nsa-train@sha256:776c4faa375043c2866e372c45baa1921fdd3ee8816648f10bb90d8053717d8b
+    image: gcr.io/kubeflow-cli/nsa-train@sha256:6ca40d5b3314f087c64f52bd902657a891a28701bbe937dfaa6048331f9cfbc8
     command:
       - python3
       - /app/train.py

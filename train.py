@@ -122,8 +122,8 @@ def _parse_args():
     parser.add_argument('--dataset', help='dataset directory or zip file', default='ModelNet40')
     parser.add_argument('--model', help='model to train', default='momenet')
     parser.add_argument('--moment', type=int, default=1, help='moment order [1/2/3]')
-    parser.add_argument('--is_normals', type=bool, default=False, help='flag for adding vertex normals')
-    parser.add_argument('--is_harmonics', type=bool, default=False, help='flag for adding harmonics pre-lifting')
+    parser.add_argument('--is_normals', type=int, default=0, help='flag for adding vertex normals')
+    parser.add_argument('--is_harmonics', type=int, default=0, help='flag for adding harmonics pre-lifting')
     parser.add_argument('--num_points', type=int, default=2048, help='Point Number [256/512/1024/2048]')
     parser.add_argument('--batch_size', type=int, default=32, help='Batch Size during training')
     parser.add_argument('--learning_rate', type=float, default=0.001, help='learning-rate hyper-parameter')
@@ -159,6 +159,7 @@ def main():
     trained_model = train_model(train_ds, val_ds,
                                 num_classes, model, num_channels,
                                 lr, logs_dir, export_dir, epochs)
+    os.makedirs(os.path.dirname(metrics_path), exist_ok=True)
     test_results = trained_model.evaluate(test_ds, return_dict=True)
     with open(metrics_path, 'w') as metrics_file:
         json.dump(test_results, metrics_file)
