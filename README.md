@@ -1,8 +1,8 @@
 # Neural Shape Analysis
 
 This project addresses the task of shape classification of point clouds. 
-It is heavily based on PointNet [1] and Momenet [2], which introduces the usage of geometric moments as input features.
-The implementation is in Tensorflow-2.3 and includes `tf.data.Dataset` mapping functions to compute the geometric moments, pre-liftings and vertex normals.
+It is heavily based on PointNet [[1]](#references) and Momenet [[2]](#references), which introduces the usage of geometric moments as input features.
+The implementation is in Tensorflow and includes `tf.data.Dataset` mapping functions to compute the geometric moments, pre-liftings and vertex normals.
 
 ## Setup
 You can create the project's environment from the `nsa.yml` file by running:
